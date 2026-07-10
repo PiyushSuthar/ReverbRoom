@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">ReverbRoom</string>
+    <string name="mic_permission_rationale">ReverbRoom needs microphone access to apply real-time audio effects.</string>
+</resources>

@@ -11,7 +11,10 @@ ReverbRoom is an Android app for live audio effects. It can process microphone i
 - Live microphone processing with low-latency `AudioRecord` and `AudioTrack`
 - Audio file import through Android media codecs
 - Reverb, echo, and noise reduction controls
-- Animated waveform visualizer and input/output level meters
+- Expanded reverb controls for decay, mix, room size, width, and damp
+- Expanded echo controls for delay, feedback, mix, beat feel, and decay
+- Preset save/load/delete for favorite effect configurations
+- Animated waveform and spectrum visualizer with input/output level meters
 - Record post-effects output
 - Save recordings to the in-app library
 - Export WAV files through Android's document picker
@@ -90,6 +93,23 @@ Use headphones when monitoring the microphone to avoid acoustic feedback.
 .\gradlew.bat :app:compileDebugAndroidTestKotlin
 ```
 
+## Releases
+
+Version values live in `gradle.properties`:
+
+```properties
+VERSION_CODE=1
+VERSION_NAME=1.0.0
+```
+
+Create a release with:
+
+```bash
+scripts/release.sh 1.1.0 "Describe the user-facing changes"
+```
+
+The script updates `gradle.properties`, prepends `CHANGELOG.md`, runs tests/build, commits the release, and tags it. Pushing a `v*` tag triggers `.github/workflows/release-apk.yml`, which builds an APK and attaches it to the GitHub release.
+
 ## Project Structure
 
 ```text
@@ -110,3 +130,4 @@ app/src/main/java/com/example/reverbroom/
 - File playback assumes 44100 Hz PCM after decode; files with other sample rates may need future resampling support.
 - The app stores library recordings in app external files storage and shares them through `FileProvider`.
 - See `spec/03-current-state.md` for the latest implementation knowledge and known limitations.
+- See `spec/05-new-features-implementation.md` for the latest feature expansion notes.

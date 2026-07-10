@@ -25,6 +25,7 @@ data class AudioEngineState(
     val mode: AudioMode = AudioMode.MICROPHONE,
     val inputLevel: Float = 0f,
     val outputLevel: Float = 0f,
+    val spectrumBands: List<Float> = List(8) { 0f },
     val isRecording: Boolean = false,
     val fileName: String? = null
 )
@@ -32,11 +33,17 @@ data class AudioEngineState(
 data class EffectParams(
     val reverbDecay: Float = 0.5f,
     val reverbMix: Float = 0.3f,
+    val reverbRoomSize: Float = 0.5f,
+    val reverbWidth: Float = 0.7f,
+    val reverbDamp: Float = 0.35f,
     val echoDelay: Float = 0.3f,
     val echoFeedback: Float = 0.3f,
     val echoMix: Float = 0.3f,
+    val echoBeats: Float = 0.25f,
+    val echoDecay: Float = 0.45f,
     val noiseReductionEnabled: Boolean = true,
-    val noiseGateThreshold: Float = 0.02f
+    val noiseGateThreshold: Float = 0.02f,
+    val noiseReductionStrength: Float = 0.55f
 )
 
 // ── AudioEngine ─────────────────────────────────────────────────────────
@@ -96,11 +103,17 @@ class AudioEngine {
     fun updateParams(params: EffectParams) {
         noiseReduction.enabled = params.noiseReductionEnabled
         noiseReduction.threshold = params.noiseGateThreshold
+        noiseReduction.strength = params.noiseReductionStrength
         reverb.decay = params.reverbDecay
         reverb.mix = params.reverbMix
+        reverb.roomSize = params.reverbRoomSize
+        reverb.width = params.reverbWidth
+        reverb.damp = params.reverbDamp
         echo.delay = params.echoDelay
         echo.feedback = params.echoFeedback
         echo.mix = params.echoMix
+        echo.beats = params.echoBeats
+        echo.decay = params.echoDecay
     }
 
     /** Start capturing from the microphone and playing through effects. */
@@ -171,7 +184,8 @@ class AudioEngine {
             it.copy(
                 isPlaying = false,
                 inputLevel = 0f,
-                outputLevel = 0f
+                outputLevel = 0f,
+                spectrumBands = List(8) { 0f }
             )
         }
     }
@@ -255,7 +269,7 @@ class AudioEngine {
                 captureIfRecording(shortBuf, read)
 
                 _state.update {
-                    it.copy(inputLevel = inLevel, outputLevel = outLevel)
+                    it.copy(inputLevel = inLevel, outputLevel = outLevel, spectrumBands = spectrumBands(floatBuf, read))
                 }
             }
         }
@@ -310,7 +324,7 @@ class AudioEngine {
             captureIfRecording(shortBuf, toRead)
 
             _state.update {
-                it.copy(inputLevel = inLevel, outputLevel = outLevel)
+                it.copy(inputLevel = inLevel, outputLevel = outLevel, spectrumBands = spectrumBands(floatBuf, toRead))
             }
         }
 
@@ -321,7 +335,8 @@ class AudioEngine {
                 it.copy(
                     isPlaying = false,
                     inputLevel = 0f,
-                    outputLevel = 0f
+                    outputLevel = 0f,
+                    spectrumBands = List(8) { 0f }
                 )
             }
         }
@@ -352,6 +367,22 @@ class AudioEngine {
             if (v > peak) peak = v
         }
         return peak.coerceIn(0f, 1f)
+    }
+
+    private fun spectrumBands(buffer: FloatArray, count: Int): List<Float> {
+        if (count <= 0) return List(8) { 0f }
+        val bands = FloatArray(8)
+        val bandSize = max(1, count / bands.size)
+        for (band in bands.indices) {
+            val start = band * bandSize
+            val end = minOf(count, start + bandSize)
+            var sum = 0f
+            for (i in start until end) {
+                sum += abs(buffer[i])
+            }
+            bands[band] = (sum / max(1, end - start) * (1.35f + band * 0.08f)).coerceIn(0f, 1f)
+        }
+        return bands.toList()
     }
 
     private fun captureIfRecording(buffer: ShortArray, count: Int) {

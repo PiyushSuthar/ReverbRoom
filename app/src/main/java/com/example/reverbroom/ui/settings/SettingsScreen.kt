@@ -14,10 +14,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.NoiseControlOff
+import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -26,14 +29,19 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -51,6 +59,7 @@ fun SettingsScreen(
     LaunchedEffect(Unit) { AudioSettingsStore.load(context) }
     val state by AudioSettingsStore.state.collectAsStateWithLifecycle()
     val params = state.effectParams
+    var presetName by remember { mutableStateOf("") }
 
     Scaffold(
         modifier = modifier,
@@ -102,6 +111,24 @@ fun SettingsScreen(
                     valueLabel = "${(params.reverbMix * 100).toInt()}%",
                     onValueChange = { updateParams(context, params.copy(reverbMix = it)) }
                 )
+                SettingsSlider(
+                    label = "Room Size",
+                    value = params.reverbRoomSize,
+                    valueLabel = "${(params.reverbRoomSize * 100).toInt()}%",
+                    onValueChange = { updateParams(context, params.copy(reverbRoomSize = it)) }
+                )
+                SettingsSlider(
+                    label = "Width",
+                    value = params.reverbWidth,
+                    valueLabel = "${(params.reverbWidth * 100).toInt()}%",
+                    onValueChange = { updateParams(context, params.copy(reverbWidth = it)) }
+                )
+                SettingsSlider(
+                    label = "Damp",
+                    value = params.reverbDamp,
+                    valueLabel = "${(params.reverbDamp * 100).toInt()}%",
+                    onValueChange = { updateParams(context, params.copy(reverbDamp = it)) }
+                )
             }
 
             SettingsCard("Echo", Icons.Filled.GraphicEq) {
@@ -122,6 +149,18 @@ fun SettingsScreen(
                     value = params.echoMix,
                     valueLabel = "${(params.echoMix * 100).toInt()}%",
                     onValueChange = { updateParams(context, params.copy(echoMix = it)) }
+                )
+                SettingsSlider(
+                    label = "Beats",
+                    value = params.echoBeats,
+                    valueLabel = "${(0.125f + params.echoBeats * 0.875f).format(2)}x",
+                    onValueChange = { updateParams(context, params.copy(echoBeats = it)) }
+                )
+                SettingsSlider(
+                    label = "Decay",
+                    value = params.echoDecay,
+                    valueLabel = "${(params.echoDecay * 100).toInt()}%",
+                    onValueChange = { updateParams(context, params.copy(echoDecay = it)) }
                 )
             }
 
@@ -145,6 +184,59 @@ fun SettingsScreen(
                     valueLabel = "${(params.noiseGateThreshold * 1000).toInt()}",
                     onValueChange = { updateParams(context, params.copy(noiseGateThreshold = it)) }
                 )
+                SettingsSlider(
+                    label = "Reduction Strength",
+                    value = params.noiseReductionStrength,
+                    valueLabel = "${(params.noiseReductionStrength * 100).toInt()}%",
+                    onValueChange = { updateParams(context, params.copy(noiseReductionStrength = it)) }
+                )
+            }
+
+            SettingsCard("Presets", Icons.Filled.Save) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedTextField(
+                        value = presetName,
+                        onValueChange = { presetName = it },
+                        label = { Text("Preset name") },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true
+                    )
+                    Button(
+                        onClick = {
+                            AudioSettingsStore.savePreset(context, presetName)
+                            presetName = ""
+                        }
+                    ) {
+                        Text("Save")
+                    }
+                }
+                if (state.presets.isEmpty()) {
+                    Text(
+                        "No presets saved",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    state.presets.forEach { preset ->
+                        ListItem(
+                            headlineContent = { Text(preset.name) },
+                            supportingContent = { Text(preset.params.summary()) },
+                            trailingContent = {
+                                Row {
+                                    TextButton(onClick = { AudioSettingsStore.loadPreset(context, preset) }) {
+                                        Text("Load")
+                                    }
+                                    IconButton(onClick = { AudioSettingsStore.deletePreset(context, preset) }) {
+                                        Icon(Icons.Filled.Delete, contentDescription = "Delete preset")
+                                    }
+                                }
+                            }
+                        )
+                    }
+                }
             }
 
             SettingsCard("Preferences", Icons.Filled.Mic) {
@@ -222,3 +314,7 @@ private fun SettingsSlider(
 }
 
 private fun Float.format(decimals: Int): String = "%.${decimals}f".format(this)
+
+private fun EffectParams.summary(): String {
+    return "Rev ${(reverbMix * 100).toInt()}%, Echo ${(echoMix * 100).toInt()}%, NR ${(noiseReductionStrength * 100).toInt()}%"
+}

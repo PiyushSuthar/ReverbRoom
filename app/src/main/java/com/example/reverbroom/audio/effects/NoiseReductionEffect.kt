@@ -2,6 +2,7 @@ package com.example.reverbroom.audio.effects
 
 import kotlin.math.abs
 import kotlin.math.exp
+import kotlin.math.sqrt
 
 /**
  * Simple noise reduction / noise gate effect.
@@ -21,9 +22,11 @@ class NoiseReductionEffect(private val sampleRate: Int = 44100) {
     // --- Tuneable parameters (updated from UI thread) -------
     @Volatile var enabled: Boolean = true
     @Volatile var threshold: Float = 0.02f   // 0..0.1
+    @Volatile var strength: Float = 0.55f
 
     // --- Envelope follower state ---
     private var envelope: Float = 0f
+    private var noiseFloor: Float = 0.01f
 
     // Attack/release time constants (in seconds)
     private val attackTime = 0.005f   // 5ms - fast attack
@@ -44,9 +47,11 @@ class NoiseReductionEffect(private val sampleRate: Int = 44100) {
         if (!enabled) return
 
         val currentThreshold = threshold
+        val currentStrength = strength.coerceIn(0f, 1f)
 
         for (i in buffer.indices) {
             val inputAbs = abs(buffer[i])
+            noiseFloor = noiseFloor * 0.995f + inputAbs * 0.005f
 
             // Smooth envelope follower
             envelope = if (inputAbs > envelope) {
@@ -67,12 +72,22 @@ class NoiseReductionEffect(private val sampleRate: Int = 44100) {
                 1f
             }
 
-            buffer[i] *= gain
+            val adaptiveThreshold = (noiseFloor * (1.5f + currentStrength * 2.5f)).coerceAtLeast(currentThreshold)
+            val downwardExpansion = if (inputAbs < adaptiveThreshold) {
+                sqrt((inputAbs / adaptiveThreshold.coerceAtLeast(0.0001f)).coerceIn(0f, 1f))
+            } else {
+                1f
+            }
+            val floorGain = 1f - currentStrength * 0.85f
+            val combinedGain = (gain * downwardExpansion).coerceIn(floorGain, 1f)
+
+            buffer[i] *= combinedGain
         }
     }
 
     /** Reset envelope state. */
     fun reset() {
         envelope = 0f
+        noiseFloor = 0.01f
     }
 }

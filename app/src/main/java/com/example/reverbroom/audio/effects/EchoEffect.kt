@@ -21,6 +21,8 @@ class EchoEffect(private val sampleRate: Int = 44100) {
     @Volatile var delay: Float = 0.3f
     @Volatile var feedback: Float = 0.3f
     @Volatile var mix: Float = 0.3f
+    @Volatile var beats: Float = 0.25f
+    @Volatile var decay: Float = 0.45f
 
     /** Circular buffer sized for the maximum possible delay. */
     private val maxDelaySamples = (MAX_DELAY_SECONDS * sampleRate).toInt()
@@ -36,9 +38,13 @@ class EchoEffect(private val sampleRate: Int = 44100) {
         val currentDelay = delay
         val currentFeedback = feedback
         val currentMix = mix
+        val currentBeats = beats
+        val currentDecay = decay
 
         // Current delay length in samples (at least 1 to avoid division by zero)
-        val delaySamples = (currentDelay * maxDelaySamples).toInt().coerceIn(1, maxDelaySamples)
+        val beatDelay = 0.125f + currentBeats * 0.875f
+        val delaySamples = (currentDelay * beatDelay * maxDelaySamples).toInt().coerceIn(1, maxDelaySamples)
+        val feedbackGain = (currentFeedback * (0.35f + currentDecay * 0.6f)).coerceIn(0f, 0.92f)
 
         for (i in buffer.indices) {
             val dry = buffer[i]
@@ -48,7 +54,7 @@ class EchoEffect(private val sampleRate: Int = 44100) {
             val delayed = delayBuffer[readIndex]
 
             // Write current input + feedback into the buffer
-            delayBuffer[writeIndex] = dry + delayed * currentFeedback
+            delayBuffer[writeIndex] = (dry + delayed * feedbackGain).coerceIn(-1.2f, 1.2f)
 
             // Advance write head
             writeIndex = (writeIndex + 1) % maxDelaySamples

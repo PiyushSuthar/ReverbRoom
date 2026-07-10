@@ -18,6 +18,9 @@ class ReverbEffect(private val sampleRate: Int = 44100) {
     // --- Tuneable parameters (updated from UI thread) -------
     @Volatile var decay: Float = 0.5f
     @Volatile var mix: Float = 0.3f
+    @Volatile var roomSize: Float = 0.5f
+    @Volatile var width: Float = 0.7f
+    @Volatile var damp: Float = 0.35f
 
     // --- Comb filter delay lengths (in samples) chosen to be mutually prime ---
     private val combDelays = intArrayOf(
@@ -38,6 +41,7 @@ class ReverbEffect(private val sampleRate: Int = 44100) {
     // --- Internal delay-line buffers ---
     private val combBuffers = Array(4) { FloatArray(combDelays[it]) }
     private val combIndices = IntArray(4)
+    private val combFilters = FloatArray(4)
 
     private val apBuffers = Array(2) { FloatArray(allPassDelays[it]) }
     private val apIndices = IntArray(2)
@@ -50,6 +54,11 @@ class ReverbEffect(private val sampleRate: Int = 44100) {
     fun process(buffer: FloatArray) {
         val currentDecay = decay
         val currentMix = mix
+        val currentRoomSize = roomSize
+        val currentWidth = width
+        val currentDamp = damp.coerceIn(0f, 0.95f)
+        val feedback = (0.25f + currentDecay * 0.45f + currentRoomSize * 0.25f).coerceIn(0f, 0.95f)
+        val stereoWidthTone = 0.8f + currentWidth * 0.4f
 
         for (i in buffer.indices) {
             val dry = buffer[i]
@@ -60,9 +69,11 @@ class ReverbEffect(private val sampleRate: Int = 44100) {
                 val buf = combBuffers[c]
                 val idx = combIndices[c]
                 val delayed = buf[idx]
-                val newVal = dry + delayed * currentDecay
-                buf[idx] = newVal
-                combSum += delayed
+                combFilters[c] = delayed * (1f - currentDamp) + combFilters[c] * currentDamp
+                val filtered = combFilters[c]
+                val newVal = dry + filtered * feedback
+                buf[idx] = newVal.coerceIn(-1.2f, 1.2f)
+                combSum += filtered * stereoWidthTone
                 combIndices[c] = (idx + 1) % buf.size
             }
             combSum *= 0.25f  // average the four comb outputs
@@ -88,6 +99,7 @@ class ReverbEffect(private val sampleRate: Int = 44100) {
     fun reset() {
         combBuffers.forEach { it.fill(0f) }
         combIndices.fill(0)
+        combFilters.fill(0f)
         apBuffers.forEach { it.fill(0f) }
         apIndices.fill(0)
     }

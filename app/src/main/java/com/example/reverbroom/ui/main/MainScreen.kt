@@ -44,12 +44,12 @@ import androidx.compose.material.icons.filled.FileOpen
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MicOff
+import androidx.compose.material.icons.filled.NoiseControlOff
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.RestartAlt
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Stop
-import androidx.compose.material.icons.filled.NoiseControlOff
 import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material.icons.outlined.Waves
 import androidx.compose.material3.AlertDialog
@@ -226,7 +226,8 @@ fun MainScreen(
                 isPlaying = state.audioState.isPlaying,
                 isRecording = state.audioState.isRecording,
                 mode = state.audioState.mode,
-                fileName = state.audioState.fileName
+                fileName = state.audioState.fileName,
+                spectrumBands = state.audioState.spectrumBands
             )
 
             // === Transport Controls ===
@@ -292,6 +293,39 @@ fun MainScreen(
                     },
                     valueLabel = "${(state.effectParams.reverbMix * 100).toInt()}%"
                 )
+                Spacer(Modifier.height(8.dp))
+                LabeledSlider(
+                    label = "Room Size",
+                    value = state.effectParams.reverbRoomSize,
+                    onValueChange = {
+                        val params = state.effectParams.copy(reverbRoomSize = it)
+                        viewModel.updateEffectParams(params)
+                        AudioSettingsStore.updateEffectParams(context, params)
+                    },
+                    valueLabel = "${(state.effectParams.reverbRoomSize * 100).toInt()}%"
+                )
+                Spacer(Modifier.height(8.dp))
+                LabeledSlider(
+                    label = "Width",
+                    value = state.effectParams.reverbWidth,
+                    onValueChange = {
+                        val params = state.effectParams.copy(reverbWidth = it)
+                        viewModel.updateEffectParams(params)
+                        AudioSettingsStore.updateEffectParams(context, params)
+                    },
+                    valueLabel = "${(state.effectParams.reverbWidth * 100).toInt()}%"
+                )
+                Spacer(Modifier.height(8.dp))
+                LabeledSlider(
+                    label = "Damp",
+                    value = state.effectParams.reverbDamp,
+                    onValueChange = {
+                        val params = state.effectParams.copy(reverbDamp = it)
+                        viewModel.updateEffectParams(params)
+                        AudioSettingsStore.updateEffectParams(context, params)
+                    },
+                    valueLabel = "${(state.effectParams.reverbDamp * 100).toInt()}%"
+                )
             }
 
             // === Echo Controls ===
@@ -329,6 +363,28 @@ fun MainScreen(
                     },
                     valueLabel = "${(state.effectParams.echoMix * 100).toInt()}%"
                 )
+                Spacer(Modifier.height(8.dp))
+                LabeledSlider(
+                    label = "Beats",
+                    value = state.effectParams.echoBeats,
+                    onValueChange = {
+                        val params = state.effectParams.copy(echoBeats = it)
+                        viewModel.updateEffectParams(params)
+                        AudioSettingsStore.updateEffectParams(context, params)
+                    },
+                    valueLabel = "${(0.125f + state.effectParams.echoBeats * 0.875f).format(2)}x"
+                )
+                Spacer(Modifier.height(8.dp))
+                LabeledSlider(
+                    label = "Decay",
+                    value = state.effectParams.echoDecay,
+                    onValueChange = {
+                        val params = state.effectParams.copy(echoDecay = it)
+                        viewModel.updateEffectParams(params)
+                        AudioSettingsStore.updateEffectParams(context, params)
+                    },
+                    valueLabel = "${(state.effectParams.echoDecay * 100).toInt()}%"
+                )
             }
 
             EffectCard(
@@ -362,6 +418,17 @@ fun MainScreen(
                     },
                     valueRange = 0.005f..0.08f,
                     valueLabel = "${(state.effectParams.noiseGateThreshold * 1000).toInt()}"
+                )
+                Spacer(Modifier.height(8.dp))
+                LabeledSlider(
+                    label = "Reduction Strength",
+                    value = state.effectParams.noiseReductionStrength,
+                    onValueChange = {
+                        val params = state.effectParams.copy(noiseReductionStrength = it)
+                        viewModel.updateEffectParams(params)
+                        AudioSettingsStore.updateEffectParams(context, params)
+                    },
+                    valueLabel = "${(state.effectParams.noiseReductionStrength * 100).toInt()}%"
                 )
             }
 
@@ -407,7 +474,8 @@ private fun AudioVisualizerCard(
     isPlaying: Boolean,
     isRecording: Boolean,
     mode: AudioMode,
-    fileName: String?
+    fileName: String?,
+    spectrumBands: List<Float>
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "viz")
     val wavePhase by infiniteTransition.animateFloat(
@@ -513,6 +581,25 @@ private fun AudioVisualizerCard(
                         end = Offset(width, centerY),
                         strokeWidth = 2.dp.toPx(),
                         cap = StrokeCap.Round
+                    )
+                }
+            }
+
+            // Status indicators
+            Row(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(18.dp),
+                verticalAlignment = Alignment.Bottom,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                spectrumBands.forEach { band ->
+                    Box(
+                        modifier = Modifier
+                            .width(7.dp)
+                            .height((18.dp + 44.dp * band.coerceIn(0f, 1f)))
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(WaveformPurpleLight.copy(alpha = 0.35f + band * 0.55f))
                     )
                 }
             }

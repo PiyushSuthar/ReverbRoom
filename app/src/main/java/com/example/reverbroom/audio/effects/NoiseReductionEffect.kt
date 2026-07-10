@@ -74,7 +74,7 @@ class NoiseReductionEffect(private val sampleRate: Int = 44100) {
 
             val adaptiveThreshold = (noiseFloor * (1.5f + currentStrength * 2.5f)).coerceAtLeast(currentThreshold)
             val downwardExpansion = if (inputAbs < adaptiveThreshold) {
-                sqrt((inputAbs / adaptiveThreshold.coerceAtLeast(0.0001f)).coerceIn(0f, 1f))
+                (inputAbs / adaptiveThreshold.coerceAtLeast(0.0001f)).coerceIn(0f, 1f)
             } else {
                 1f
             }

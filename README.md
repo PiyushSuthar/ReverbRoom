@@ -131,3 +131,5 @@ app/src/main/java/com/example/reverbroom/
 - The app stores library recordings in app external files storage and shares them through `FileProvider`.
 - See `spec/03-current-state.md` for the latest implementation knowledge and known limitations.
 - See `spec/05-new-features-implementation.md` for the latest feature expansion notes.
+- See `spec/06-optimization.md` for details on DSP performance optimizations and latency reduction.
+- See `spec/07-knowledge-and-changes.md` for a summary of GitHub CI fixes and audio filter optimizations.
